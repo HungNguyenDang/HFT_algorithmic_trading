@@ -33,10 +33,13 @@ percent = 0.01
 
 stop_margin = 1.5
 
-frtl_m15 = 5
-frtl_h1 = 5
+frtl_m15 = 5 # 5 6 7 8
+frtl_h1 = 5 # 5 6 7 8
 frtl_h4 = 5
 frtl_day = 5
+
+upper_band = 0.8 # 0.7 0.75 0.8 0.85 0.9
+lower_band = 0.2 # 0.1 0.15 0.2 0.25 0.3
 
 frtl_2 = 2
 
@@ -72,22 +75,26 @@ plot_L0 = 1
 plot_L1 = 0
 plot_L0_line = 1
 
-plot_all = 1
+plot_all = 0
+
+generate_result = 0
 
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
-from_day = "2021-01-01"
-to_day = '2021-02-01'
+from_day = "2024-01-01"
+to_day = '2024-03-01'
 
-data_m15 = "AUDUSD_M15.csv"
-data_h1 = "AUDUSD_H1.csv"
-data_h4 = "AUDUSD_H4.csv"
-data_d1 = "AUDUSD_D.csv"
+# data_m15 = "data/AUDUSD_M15.csv"
+# data_h1 = "data/AUDUSD_H1.csv"
+# data_h4 = "data/AUDUSD_H4.csv"
+# data_d1 = "data/AUDUSD_D.csv"
 
-# data_d1 = "AU_D_2024.csv"
-# data_h4 = "AU_H4_2024.csv"
-# data_h1 = "AU_H1_2024.csv"
-# data_m15 = "AU_M15_2024.csv"
+csv_name = "result/AU_2024_Jan_September.csv"
+
+data_d1 = "data/AU_D_2024.csv"
+data_h4 = "data/AU_H4_2024.csv"
+data_h1 = "data/AU_H1_2024.csv"
+data_m15 = "data/AU_M15_2024.csv"
 
 # endregion
 
@@ -226,13 +233,13 @@ m15['h1_band'] = m15['sh_h1'] - m15['sl_h1']
 
 m15['h1_big'] = m15[['sh_h1', 'sl_h1']].max(axis=1)
 m15['h1_small'] = m15[['sh_h1', 'sl_h1']].min(axis=1)
-m15['h1_up'] = m15['h1_small'] + (m15['h1_big'] - m15['h1_small']) * 0.8
-m15['h1_down'] = m15['h1_small'] + (m15['h1_big'] - m15['h1_small'])*0.2
+m15['h1_up'] = m15['h1_small'] + (m15['h1_big'] - m15['h1_small']) * upper_band
+m15['h1_down'] = m15['h1_small'] + (m15['h1_big'] - m15['h1_small'])* lower_band
 
 m15['m15_big'] = m15[['sh_m15', 'sl_m15']].max(axis=1)
 m15['m15_small'] = m15[['sh_m15', 'sl_m15']].min(axis=1)
-m15['m15_up'] = m15['m15_small'] + (m15['m15_big'] - m15['m15_small']) * 0.8
-m15['m15_down'] = m15['m15_small'] + (m15['m15_big'] - m15['m15_small'])*0.2
+m15['m15_up'] = m15['m15_small'] + (m15['m15_big'] - m15['m15_small']) * upper_band
+m15['m15_down'] = m15['m15_small'] + (m15['m15_big'] - m15['m15_small'])* lower_band
 
 pd.set_option('future.no_silent_downcasting', True)
 m15['h1_up_cal'] = m15['h1_up'].fillna(1.0)
@@ -348,8 +355,8 @@ select_positions = pd.DataFrame(sele_rows)
 # endregion
 
 # region CALCULATE SHARPE, DRAWDOWN
-# sharpe = cal_sharpe(select_positions['R_half'])
-# cumret, maxDD, maxDDD, startDD = cal_drawdown(np,select_positions['R_half'])
+sharpe = cal_sharpe(select_positions['R_half'])
+cumret, maxDD, maxDDD, startDD = cal_drawdown(np,select_positions['R_half'])
 
 # endregion
 
@@ -524,7 +531,15 @@ if plot_all ==1 :
 # print("maxDD: ", maxDD)
 # print("maxDDD: ", maxDDD)
 # print("startDD: ", startDD)
-# import matplotlib.pyplot as plt
-# plt.plot(cumret)
+import matplotlib.pyplot as plt
+plt.plot(cumret)
+plt.show()
 
+# endregion
+
+# region GENERATE CSV FILE
+if generate_result == 1:
+    result = select_positions[['entry', 'stop_loss', 'take_profit', 'lot']]
+    result.to_csv(csv_name, header=False)
+    print(len(select_positions))
 # endregion
