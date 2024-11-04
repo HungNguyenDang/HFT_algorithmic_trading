@@ -19,6 +19,7 @@ from helpers import plot_trace
 from helpers import cal_sharpe
 from helpers import cal_drawdown
 from helpers import finding_fractal
+from helpers import find_previous_swing_index
 
 # endregion
 
@@ -50,7 +51,7 @@ frtl_flag_day = 0
 
 frtl_flag_m15_2 = 0
 
-swing_m15 = 1
+swing_m15 = 0
 swing_h1 = 0
 swing_h4 = 0
 
@@ -74,15 +75,19 @@ plot_closed = 0
 plot_L0 = 1
 plot_L1 = 0
 plot_L0_line = 1
+plot_L0_pre_line = 1
+plot_L1_line = 0
 
-plot_all = 0
+plot_cumret = 0
+plot_all = 1
 
 generate_result = 0
+find_position = 0
 
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
 from_day = "2024-01-01"
-to_day = '2024-03-01'
+to_day = '2024-01-03'
 
 # data_m15 = "data/AUDUSD_M15.csv"
 # data_h1 = "data/AUDUSD_H1.csv"
@@ -257,26 +262,42 @@ swh_h1_list.index = swh_h1_list.index.shift(frtl_h1+1, freq='h')
 swl_h1_list = copy.deepcopy(swl_h1['Low'])
 swl_h1_list.index = swl_h1_list.index.shift(frtl_h1+1, freq='h')
 
-m15['sh_h1_pre1'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 1, axis=1)
-m15['sh_h1_pre2'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 2, axis=1)
-m15['sh_h1_pre3'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 3, axis=1)
+m15['sh_h1_pre1'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 1, value = 'sh_h1', axis=1)
+m15['sh_h1_pre2'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 2, value = 'sh_h1', axis=1)
+m15['sh_h1_pre3'] = m15.apply(find_previous_swing, list = swh_h1_list.copy(), order = 3, value = 'sh_h1', axis=1)
 
-m15['sl_h1_pre1'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 1, axis=1)
-m15['sl_h1_pre2'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 2, axis=1)
-m15['sl_h1_pre3'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 3, axis=1)
+m15['sl_h1_pre1'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 1, value = 'sl_h1', axis=1)
+m15['sl_h1_pre2'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 2, value = 'sl_h1', axis=1)
+m15['sl_h1_pre3'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), order = 3, value = 'sl_h1', axis=1)
 
 # endregion
 
 # region WAVE FRACTAL ALGORITHM
 
-m15['down_bar'] = m15['Close'] > m15['Close'].shift(1)
-m15['up_bar'] = m15['Close'] < m15['Close'].shift(1)
-m15['L0_down'] = (m15['down_bar'].shift(1) & m15['down_bar']).fillna(False)
-m15['L0_up'] = (m15['up_bar'].shift(1) & m15['up_bar']).fillna(False)
-m15['L0_up_val'] = m15.apply(lambda row: row['High'] if row['L0_up'] else None, axis=1)
-m15['L0_down_val'] = m15.apply(lambda row: row['Low'] if row['L0_down'] else None, axis=1) 
-m15 = process_swing(m15, 'L0_down', 'L0_down_valine', 'Low')
-m15 = process_swing(m15, 'L0_up', 'L0_up_valine', 'High')
+m15['down_bar'] = m15['Close'] <= m15['Close'].shift(1)
+m15['up_bar'] = m15['Close'] > m15['Close'].shift(1)
+m15['L0_down'] = (m15['down_bar'].shift(1) & m15['up_bar']).fillna(False)
+m15['L0_up'] = (m15['up_bar'].shift(1) & m15['down_bar']).fillna(False)
+m15['High_shifted'] = m15['High'].shift(1)
+m15['Low_shifted'] = m15['Low'].shift(1)
+m15['L0_up_val'] = m15.apply(lambda row: max(row['High'], row['High_shifted']) if row['L0_up'] else None, axis=1)
+m15['L0_down_val'] = m15.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L0_down'] else None, axis=1)
+m15.drop(columns=['High_shifted'], inplace=True)
+m15.drop(columns=['Low_shifted'], inplace=True)
+m15 = process_swing(m15, 'L0_down', 'L0_down_valine', 'L0_down_val')
+m15 = process_swing(m15, 'L0_up', 'L0_up_valine', 'L0_up_val')
+
+# Create the list of L0 up and down
+L0_up = m15[m15['L0_up']]
+L0_down = m15[m15['L0_down']]
+L0_up_list = copy.deepcopy(L0_up['L0_up_val'])
+L0_down_list = copy.deepcopy(L0_down['L0_down_val'])
+
+# Find the previous L0 up and down
+m15['L0_up_pre_1'] = m15.apply(find_previous_swing, list = L0_up_list.copy(), order = 1, value = 'L0_up_valine', axis=1)
+m15['L0_down_pre_1'] = m15.apply(find_previous_swing, list = L0_down_list.copy(), order = 1, value = 'L0_down_valine', axis=1)
+m15['L0_up_pre_1_indx'] = m15.apply(find_previous_swing_index, list = L0_up_list.copy(), order = 1, value = 'L0_up_valine', axis=1)
+m15['L0_down_pre_1_indx'] = m15.apply(find_previous_swing_index, list = L0_down_list.copy(), order = 1, value = 'L0_down_valine', axis=1)
 
 m15['L1_up'] = False
 m15['L1_down'] = False
@@ -293,7 +314,7 @@ last_L0_down = None
 last_L1_up = None 
 last_L1_down = None
 
-m15 = finding_fractal(m15, 'L1_up', 'L1_down', 'L1_up_val', 'L1_down_val', 'L0_up_val', 'L0_down_val')
+# m15 = finding_fractal(m15, 'L1_up', 'L1_down', 'L1_up_val', 'L1_down_val', 'L0_up_val', 'L0_down_val')
 
 #endregion
 
@@ -321,42 +342,43 @@ m15['show_sell_cond'] = m15['High'].where(confirm_sell == True, None)
 
 # region POSITIONS series
 # with entry, stop loss, take profit, closed, pnl
+if find_position == 1:
+    m15['confirm_sell'] = np.where(confirm_sell == True, True, False)
+    m15['stop_loss'] = m15.apply(lambda row: row['atr_up'] if row['confirm_sell'] else None, axis=1)
+    m15['entry'] = m15.apply(lambda row: row['Close'] if row['confirm_sell'] else None, axis=1)
+    m15['take_profit'] = m15.apply(lambda row: (row['h1_small_cal'] + row['h1_down_cal'])/2 if row['confirm_sell'] else None, axis=1)
 
-m15['confirm_sell'] = np.where(confirm_sell == True, True, False)
-m15['stop_loss'] = m15.apply(lambda row: row['atr_up'] if row['confirm_sell'] else None, axis=1)
-m15['entry'] = m15.apply(lambda row: row['Close'] if row['confirm_sell'] else None, axis=1)
-m15['take_profit'] = m15.apply(lambda row: (row['h1_small_cal'] + row['h1_down_cal'])/2 if row['confirm_sell'] else None, axis=1)
+    positions = m15.dropna(subset=['entry', 'stop_loss', 'take_profit'])
+    positions = positions[['entry', 'stop_loss', 'take_profit']]
+    positions = check_positions(m15, positions, 'entry', 'stop_loss', 'take_profit', 'closed')
 
-positions = m15.dropna(subset=['entry', 'stop_loss', 'take_profit'])
-positions = positions[['entry', 'stop_loss', 'take_profit']]
-positions = check_positions(m15, positions, 'entry', 'stop_loss', 'take_profit', 'closed')
-
-positions['tp_pip'] = positions['entry'] - positions['take_profit']
-positions['sl_pip'] = positions['stop_loss'] - positions['entry']
-positions['pnl'] = (positions['entry'] - positions['closed'])
-positions['R'] = positions['pnl']/positions['sl_pip']
-positions['pnl_half'] = positions.apply(lambda row: 0.5*(row['entry']-row['close_half']) +
+    positions['tp_pip'] = positions['entry'] - positions['take_profit']
+    positions['sl_pip'] = positions['stop_loss'] - positions['entry']
+    positions['pnl'] = (positions['entry'] - positions['closed'])
+    positions['R'] = positions['pnl']/positions['sl_pip']
+    positions['pnl_half'] = positions.apply(lambda row: 0.5*(row['entry']-row['close_half']) +
                                         max(0, 0.5*(row['entry'] - row['closed']))
                                         if row['half'] else row['pnl'], axis=1)
-# Close half position when price goes half way to take profit, move stop loss to break even for another half
-positions['R_half'] = positions.apply(lambda row: row['pnl_half']/row['sl_pip'] if row['half'] else row['R'], axis=1)
-positions['lot'] = 0.1*fund*percent/(positions['sl_pip']*10000)
-# open new position only after the old one closes
-sele_rows = []
-pre_closed_time = None
+    # Close half position when price goes half way to take profit, move stop loss to break even for another half
+    positions['R_half'] = positions.apply(lambda row: row['pnl_half']/row['sl_pip'] if row['half'] else row['R'], axis=1)
+    positions['lot'] = 0.1*fund*percent/(positions['sl_pip']*10000)
+    # open new position only after the old one closes
+    sele_rows = []
+    pre_closed_time = None
 
-for index, row in positions.iterrows():
-    if pre_closed_time is None or index >= pre_closed_time:
-        sele_rows.append(row)
-        pre_closed_time = row['closed_time']
+    for index, row in positions.iterrows():
+        if pre_closed_time is None or index >= pre_closed_time:
+            sele_rows.append(row)
+            pre_closed_time = row['closed_time']
 
-select_positions = pd.DataFrame(sele_rows)
+    select_positions = pd.DataFrame(sele_rows)
 
 # endregion
 
 # region CALCULATE SHARPE, DRAWDOWN
-sharpe = cal_sharpe(select_positions['R_half'])
-cumret, maxDD, maxDDD, startDD = cal_drawdown(np,select_positions['R_half'])
+if find_position == 1:
+    sharpe = cal_sharpe(select_positions['R_half'])
+    cumret, maxDD, maxDDD, startDD = cal_drawdown(np,select_positions['R_half'])
 
 # endregion
 
@@ -489,16 +511,24 @@ if plot_pre_sh_h1_3 == 1:
     plot_marker(fig, go, m15.index, m15['sh_h1_pre3'], 'markers', 'triangle-up', 'green', 5, 'Swing High H1 pre3')
 
 if plot_L0 == 1:
-    plot_marker(fig, go, m15.index, m15['L0_up_val'] + 0.0002, 'markers', 'circle', 'cyan', 5, name = 'L0_up')
-    plot_marker(fig, go, m15.index, m15['L0_down_val'] - 0.0002, 'markers', 'circle', 'cyan', 5, name = 'L0_down')
+    plot_marker(fig, go, m15.index, m15['L0_up_val'], 'markers', 'circle', 'blue', 7, name = 'L0_up')
+    plot_marker(fig, go, m15.index, m15['L0_down_val'], 'markers', 'circle', 'cyan', 7, name = 'L0_down')
 
 if plot_L1 == 1:
-    plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0004, 'markers', 'circle', 'purple', 5, 'L1_up')
-    plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0004, 'markers', 'circle', 'purple', 5, 'L1_down')
+    plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0002, 'markers', 'circle', 'orange', 7, 'L1_up')
+    plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0002, 'markers', 'circle', 'yellow', 7, 'L1_down')
 
 if plot_L0_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_valine'], 'lines', 2, 'cyan', 'L0 down line')
-    plot_line(fig, go, m15.index, m15['L0_up_valine'], 'lines', 2, 'cyan', 'L0 down line')
+    plot_line(fig, go, m15.index, m15['L0_up_valine'], 'lines', 2, 'blue', 'L0 up line')
+
+if plot_L0_pre_line == 1:
+    plot_line(fig, go, m15.index, m15['L0_up_pre_1'], 'lines', 2, 'red', 'L0 up previous')
+    plot_line(fig, go, m15.index, m15['L0_down_pre_1'], 'lines', 2, 'green', 'L0 down previous')    
+
+if plot_L1_line == 1:
+    plot_line(fig, go, m15.index, m15['L1_down_valine'], 'lines', 2, 'yellow', 'L1 down line')
+    plot_line(fig, go, m15.index, m15['L1_up_valine'], 'lines', 2, 'orange', 'L1 up line')
 
 fig.update_layout(title='Candlestick Chart',
                   yaxis_title='Price',
@@ -531,9 +561,10 @@ if plot_all ==1 :
 # print("maxDD: ", maxDD)
 # print("maxDDD: ", maxDDD)
 # print("startDD: ", startDD)
-import matplotlib.pyplot as plt
-plt.plot(cumret)
-plt.show()
+if plot_cumret == 1:
+    import matplotlib.pyplot as plt
+    plt.plot(cumret)
+    plt.show()
 
 # endregion
 

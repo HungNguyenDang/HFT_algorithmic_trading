@@ -74,12 +74,12 @@ def atr(df, length=14, smoothing='RMA'):
         df['ATR'] = rma(df['TR'], length)
     return df
 
-def find_previous_swing(row, list, order):
+def find_previous_swing(row, list, order, value):
     import numpy as np
     import pandas as pd
 
-    sh_h1 = row['sh_h1']
-    if pd.isna(sh_h1):
+    swing = row[value]
+    if pd.isna(swing):
         return np.nan
     current_time = row.name
     previous_times = list.index[list.index <= current_time]
@@ -89,23 +89,40 @@ def find_previous_swing(row, list, order):
         count = order
         # start at the backward index of order, check if the previous swing
         # equals the current swing, stop when swings are different
-        while list[previous_times[-count]] == sh_h1 and count < len(previous_times):
+        while list[previous_times[-count]] == swing and count < len(previous_times):
             count +=1
         
-        if count == len(previous_times) and list[previous_times[-count]] == sh_h1:
+        if count == len(previous_times) and list[previous_times[-count]] == swing:
             return np.nan
         
-        if list[previous_times[-count]] == sh_h1:
+        if list[previous_times[-count]] == swing:
             return np.nan
         
         return list[previous_times[-count]]
-        # if list[previous_times[-1]] == sh_h1:
-        #     if len(previous_times) - 1 >= order:
-        #         return list[previous_times[-order-1]]
-        #     else:
-        #         return np.nan            
-        # else:
-        #     return list[[previous_times[-order-1]]]
+    else:
+        return np.nan
+
+def find_previous_swing_index(row, list, order, value):
+    import numpy as np
+    import pandas as pd
+    swing = row[value]
+    if pd.isna(swing):
+        return np.nan
+    current_time = row.name
+    previous_times = list.index[list.index <= current_time]
+    if previous_times.empty:
+        return np.nan
+    if len(previous_times) > order:
+        count = order
+        # start at the backward index of order, check if the previous swing
+        # equals the current swing, stop when swings are different
+        while list[previous_times[-count]] == swing and count < len(previous_times):
+            count +=1
+        if count == len(previous_times) and list[previous_times[-count]] == swing:
+            return np.nan
+        if list[previous_times[-count]] == swing:
+            return np.nan
+        return previous_times[-count]
     else:
         return np.nan
 
