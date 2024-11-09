@@ -102,10 +102,11 @@ def find_previous_swing(row, list, order, value):
     else:
         return np.nan
 
-def find_previous_swing_index(row, list, order, value):
+def find_previous_swing_index(row, list, order, value, confirm):
     import numpy as np
     import pandas as pd
     swing = row[value]
+    bool = row[confirm]
     if pd.isna(swing):
         return np.nan
     current_time = row.name
@@ -114,6 +115,10 @@ def find_previous_swing_index(row, list, order, value):
         return np.nan
     if len(previous_times) > order:
         count = order
+        # if the current bar has no swing, the latest swing is the previous
+        if bool == False:
+            return previous_times[-count]
+
         # start at the backward index of order, check if the previous swing
         # equals the current swing, stop when swings are different
         while list[previous_times[-count]] == swing and count < len(previous_times):

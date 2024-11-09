@@ -24,7 +24,6 @@ from helpers import find_previous_swing_index
 # endregion
 
 # region VARIABLES
-
 # 1$ = 0.1 lot x 1 pips
 # lot = 0.1* money / pips
 # Ex: 0.1* 100$ / 10 = 1 lot
@@ -72,11 +71,33 @@ plot_stop_loss = 0
 plot_take_profit = 0
 plot_closed = 0
 
-plot_L0 = 1
-plot_L1 = 0
-plot_L0_line = 1
-plot_L0_pre_line = 1
+# endregion
+
+# region VARIABLES FRACTALS
+plot_L0 = 0
+plot_L1 = 1
+plot_L2 = 0
+plot_L3 = 0
+plot_L0_line = 0
+plot_L0_pre_line = 0
+
 plot_L1_line = 0
+plot_L1_pre_line = 0
+
+plot_L2_line = 0
+plot_L2_pre_line = 0
+
+plot_L3_line = 0
+plot_L3_pre_line = 0
+
+plot_L0_zigzag = 1
+plot_L1_zigzag = 1
+plot_L2_zigzag = 1
+plot_L3_zigzag = 1
+
+# endregion
+
+# region VARIABLES PLOT ALL, INPUT DATA
 
 plot_cumret = 0
 plot_all = 1
@@ -87,7 +108,7 @@ find_position = 0
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
 from_day = "2024-01-01"
-to_day = '2024-01-03'
+to_day = '2024-01-20'
 
 # data_m15 = "data/AUDUSD_M15.csv"
 # data_h1 = "data/AUDUSD_H1.csv"
@@ -100,7 +121,6 @@ data_d1 = "data/AU_D_2024.csv"
 data_h4 = "data/AU_H4_2024.csv"
 data_h1 = "data/AU_H1_2024.csv"
 data_m15 = "data/AU_M15_2024.csv"
-
 # endregion
 
 # region IMPORT DATA
@@ -120,10 +140,6 @@ data_h4.set_index('Time', inplace=True)
 data_m15 = pd.read_csv(data_m15, parse_dates=True)
 data_m15['Time'] = pd.to_datetime(data_m15['Time'], format = format_hour)
 data_m15.set_index('Time', inplace=True)
-
-# endregion
-
-# region SLICE
 
 m15 = data_m15.loc[from_day : to_day]
 h1 = data_h1.loc[from_day : to_day]
@@ -272,8 +288,7 @@ m15['sl_h1_pre3'] = m15.apply(find_previous_swing, list = swl_h1_list.copy(), or
 
 # endregion
 
-# region WAVE FRACTAL ALGORITHM
-
+# region CREATE L0
 m15['down_bar'] = m15['Close'] <= m15['Close'].shift(1)
 m15['up_bar'] = m15['Close'] > m15['Close'].shift(1)
 m15['L0_down'] = (m15['down_bar'].shift(1) & m15['up_bar']).fillna(False)
@@ -286,35 +301,97 @@ m15.drop(columns=['High_shifted'], inplace=True)
 m15.drop(columns=['Low_shifted'], inplace=True)
 m15 = process_swing(m15, 'L0_down', 'L0_down_valine', 'L0_down_val')
 m15 = process_swing(m15, 'L0_up', 'L0_up_valine', 'L0_up_val')
-
-# Create the list of L0 up and down
 L0_up = m15[m15['L0_up']]
 L0_down = m15[m15['L0_down']]
 L0_up_list = copy.deepcopy(L0_up['L0_up_val'])
 L0_down_list = copy.deepcopy(L0_down['L0_down_val'])
 
-# Find the previous L0 up and down
-m15['L0_up_pre_1'] = m15.apply(find_previous_swing, list = L0_up_list.copy(), order = 1, value = 'L0_up_valine', axis=1)
-m15['L0_down_pre_1'] = m15.apply(find_previous_swing, list = L0_down_list.copy(), order = 1, value = 'L0_down_valine', axis=1)
-m15['L0_up_pre_1_indx'] = m15.apply(find_previous_swing_index, list = L0_up_list.copy(), order = 1, value = 'L0_up_valine', axis=1)
-m15['L0_down_pre_1_indx'] = m15.apply(find_previous_swing_index, list = L0_down_list.copy(), order = 1, value = 'L0_down_valine', axis=1)
+# endregion
 
-m15['L1_up'] = False
-m15['L1_down'] = False
-m15['L2_up'] = False
-m15['L2_down'] = False
+# region CREATE L1
+h1['down_bar'] = h1['Close'] <= h1['Close'].shift(1)
+h1['up_bar'] = h1['Close'] > h1['Close'].shift(1)
+h1['L1_down'] = (h1['down_bar'].shift(1) & h1['up_bar']).fillna(False)
+h1['L1_up'] = (h1['up_bar'].shift(1) & h1['down_bar']).fillna(False)
+h1['High_shifted'] = h1['High'].shift(1)
+h1['Low_shifted'] = h1['Low'].shift(1)
+h1['L1_up_val'] = h1.apply(lambda row: max(row['High'], row['High_shifted']) if row['L1_up'] else None, axis=1)
+h1['L1_down_val'] = h1.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L1_down'] else None, axis=1)
+h1.drop(columns=['High_shifted'], inplace=True)
+h1.drop(columns=['Low_shifted'], inplace=True)
 
-m15['L1_up_val'] = None
-m15['L1_down_val'] = None
-m15['L2_up_val'] = None
-m15['L2_down_val'] = None
+# 
+# h1['L1_up_val'] = h1['L1_up_val'].fillna(False)
+# h1['L1_down_val'] = h1['L1_down_val'].fillna(False)
 
-last_L0_up = None 
-last_L0_down = None 
-last_L1_up = None 
-last_L1_down = None
+h1 = process_swing(h1, 'L1_down', 'L1_down_valine', 'L1_down_val')
+h1 = process_swing(h1, 'L1_up', 'L1_up_valine', 'L1_up_val')
+L1_up_val = h1[h1['L1_up_val'].notna()]
+L1_up_val_list = copy.deepcopy(L1_up_val['L1_up_val'])
+L1_up_val_list.index = L1_up_val_list.index.shift(1, freq = 'h')
 
-# m15 = finding_fractal(m15, 'L1_up', 'L1_down', 'L1_up_val', 'L1_down_val', 'L0_up_val', 'L0_down_val')
+
+L1_down_val = h1[h1['L1_down_val'].notna()]
+L1_down_val_list = copy.deepcopy(L1_down_val['L1_down_val'])
+L1_down_val_list.index = L1_down_val_list.index.shift(1, freq = 'h')
+
+m15['L1_up_val'] = L1_up_val_list.reindex(m15.index, method='ffill')
+m15['L1_down_val'] = L1_down_val_list.reindex(m15.index, method='ffill')
+
+# endregion
+
+# region CREATE L2
+h4['down_bar'] = h4['Close'] <= h4['Close'].shift(1)
+h4['up_bar'] = h4['Close'] > h4['Close'].shift(1)
+h4['L2_down'] = (h4['down_bar'].shift(1) & h4['up_bar']).fillna(False)
+h4['L2_up'] = (h4['up_bar'].shift(1) & h4['down_bar']).fillna(False)
+h4['High_shifted'] = h4['High'].shift(1)
+h4['Low_shifted'] = h4['Low'].shift(1)
+h4['L2_up_val'] = h4.apply(lambda row: max(row['High'], row['High_shifted']) if row['L2_up'] else None, axis=1)
+h4['L2_down_val'] = h4.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L2_down'] else None, axis=1)
+h4.drop(columns=['High_shifted'], inplace=True)
+h4.drop(columns=['Low_shifted'], inplace=True)
+h4 = process_swing(h4, 'L2_down', 'L2_down_valine', 'L2_down_val')
+h4 = process_swing(h4, 'L2_up', 'L2_up_valine', 'L2_up_val')
+L2_up_val = h4[h4['L2_up_valine'].notna()]
+L2_down_val = h4[h4['L2_down_valine'].notna()]
+m15['L2_up_val'] = L2_up_val['L2_up_val'].reindex(m15.index, method='ffill')
+m15['L2_down_val'] = L2_down_val['L2_down_val'].reindex(m15.index, method='ffill')
+
+# endregion
+
+# region CREATE L3
+day['down_bar'] = day['Close'] <= day['Close'].shift(1)
+day['up_bar'] = day['Close'] > day['Close'].shift(1)
+day['L3_down'] = (day['down_bar'].shift(1) & day['up_bar']).fillna(False)
+day['L3_up'] = (day['up_bar'].shift(1) & day['down_bar']).fillna(False)
+day['High_shifted'] = day['High'].shift(1)
+day['Low_shifted'] = day['Low'].shift(1)
+day['L3_up_val'] = day.apply(lambda row: max(row['High'], row['High_shifted']) if row['L3_up'] else None, axis=1)
+day['L3_down_val'] = day.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L3_down'] else None, axis=1)
+day.drop(columns=['High_shifted'], inplace=True)
+day.drop(columns=['Low_shifted'], inplace=True)
+day = process_swing(day, 'L3_down', 'L3_down_valine', 'L3_down_val')
+day = process_swing(day, 'L3_up', 'L3_up_valine', 'L3_up_val')
+L3_up_val = day[day['L3_up_valine'].notna()]
+L3_down_val = day[day['L3_down_valine'].notna()]
+m15['L3_up_val'] = L3_up_val['L3_up_val'].reindex(m15.index, method='ffill')
+m15['L3_down_val'] = L3_down_val['L3_down_val'].reindex(m15.index, method='ffill')
+
+# endregion
+
+# region CREATE ZIGZAG
+m15['L0_zigzag'] = m15['L0_up_val'].combine_first(m15['L0_down_val'])
+m15['L0_zigzag'] = m15['L0_zigzag'].interpolate()
+
+m15['L1_zigzag'] = m15['L1_up_val'].combine_first(m15['L1_down_val'])
+m15['L1_zigzag'] = m15['L1_zigzag'].interpolate()
+
+m15['L2_zigzag'] = m15['L2_up_val'].combine_first(m15['L2_down_val'])
+m15['L2_zigzag'] = m15['L2_zigzag'].interpolate()
+
+m15['L3_zigzag'] = m15['L3_up_val'].combine_first(m15['L3_down_val'])
+m15['L3_zigzag'] = m15['L3_zigzag'].interpolate()
 
 #endregion
 
@@ -382,7 +459,7 @@ if find_position == 1:
 
 # endregion
 
-# region PLOT
+# region PLOT FLAG
 
 fig = go.Figure(data=[go.Candlestick(x = m15.index,
                                     open = m15['Open'],
@@ -424,6 +501,9 @@ if frtl_flag_m15_2 == 1:
     # Fractal low m15 period 2
     plot_marker(fig, go, swl_m15_2.index, swl_m15_2['Low'] - offset_m15, 'markers', 'triangle-down', 'green', 5, 'Fractal Lows m15')
 
+# endregion
+
+# region PLOT SWING, TRACE, ENTRY, PRE-SWING
 if swing_m15 == 1:
     # Swing high m15
     plot_marker(fig, go, m15.index, m15['sh_m15'], 'markers', 'circle', 'red', 2, 'Swing High m15')
@@ -510,6 +590,10 @@ if plot_pre_sh_h1_2 == 1:
 if plot_pre_sh_h1_3 == 1:
     plot_marker(fig, go, m15.index, m15['sh_h1_pre3'], 'markers', 'triangle-up', 'green', 5, 'Swing High H1 pre3')
 
+# endregion
+
+# region PLOT FRACTAL
+
 if plot_L0 == 1:
     plot_marker(fig, go, m15.index, m15['L0_up_val'], 'markers', 'circle', 'blue', 7, name = 'L0_up')
     plot_marker(fig, go, m15.index, m15['L0_down_val'], 'markers', 'circle', 'cyan', 7, name = 'L0_down')
@@ -517,6 +601,14 @@ if plot_L0 == 1:
 if plot_L1 == 1:
     plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0002, 'markers', 'circle', 'orange', 7, 'L1_up')
     plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0002, 'markers', 'circle', 'yellow', 7, 'L1_down')
+
+if plot_L2 == 1:
+    plot_marker(fig, go, m15.index, m15['L2_up_val'] + 0.0004, 'markers', 'circle', 'green', 7, 'L2_up')
+    plot_marker(fig, go, m15.index, m15['L2_down_val'] - 0.0004, 'markers', 'circle', 'green', 7, 'L2_down')
+
+if plot_L3 == 1:
+    plot_marker(fig, go, m15.index, m15['L3_up_val'] + 0.0006, 'markers', 'circle', 'red', 7, 'L3_up')
+    plot_marker(fig, go, m15.index, m15['L3_down_val'] - 0.0006, 'markers', 'circle', 'red', 7, 'L3_down')
 
 if plot_L0_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_valine'], 'lines', 2, 'cyan', 'L0 down line')
@@ -529,6 +621,22 @@ if plot_L0_pre_line == 1:
 if plot_L1_line == 1:
     plot_line(fig, go, m15.index, m15['L1_down_valine'], 'lines', 2, 'yellow', 'L1 down line')
     plot_line(fig, go, m15.index, m15['L1_up_valine'], 'lines', 2, 'orange', 'L1 up line')
+
+if plot_L0_zigzag == 1:
+    plot_line(fig, go, m15.index, m15['L0_zigzag'], 'lines', 1, 'cyan', 'L0_zigzag')
+
+if plot_L1_zigzag == 1:
+    plot_line(fig, go, m15.index, m15['L1_zigzag'], 'lines', 2, 'orange', 'L1_zigzag')
+
+if plot_L2_zigzag == 1:
+    plot_line(fig, go, m15.index, m15['L2_zigzag'], 'lines', 2, 'GREEN', 'L2_zigzag')       
+
+if plot_L3_zigzag == 1:
+    plot_line(fig, go, m15.index, m15['L3_zigzag'], 'lines', 2, 'RED', 'L3_zigzag')       
+
+# endregion
+
+# region FIG UPDATE LAYOUT-AXES, PLOT ALL
 
 fig.update_layout(title='Candlestick Chart',
                   yaxis_title='Price',
@@ -551,6 +659,13 @@ if plot_all ==1 :
 
 # endregion
 
+# region GENERATE CSV FILE
+if generate_result == 1:
+    result = select_positions[['entry', 'stop_loss', 'take_profit', 'lot']]
+    result.to_csv(csv_name, header=False)
+    print(len(select_positions))
+# endregion
+
 # region PRINT
 
 # print(select_positions[['R', 'R_half']])
@@ -566,11 +681,7 @@ if plot_cumret == 1:
     plt.plot(cumret)
     plt.show()
 
-# endregion
+# print(m15.loc['2024-01-02 08:00','L0_up_pre_1_indx'])
+# print(m15.loc['2024-01-02 08:00','L0_down_pre_1_indx'])
 
-# region GENERATE CSV FILE
-if generate_result == 1:
-    result = select_positions[['entry', 'stop_loss', 'take_profit', 'lot']]
-    result.to_csv(csv_name, header=False)
-    print(len(select_positions))
 # endregion
