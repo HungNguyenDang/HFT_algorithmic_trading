@@ -29,6 +29,7 @@ def calc_swing_lows(df, period, column):
     return df
 
 def process_swing(df, collumn, output, type):
+    # assgin value to swing
     current_value = None
     df[output] = None
     for index, row in df.iterrows():

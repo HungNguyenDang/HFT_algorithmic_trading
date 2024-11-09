@@ -81,7 +81,7 @@ plot_L3 = 0
 plot_L0_line = 0
 plot_L0_pre_line = 0
 
-plot_L1_line = 0
+plot_L1_line = 1
 plot_L1_pre_line = 0
 
 plot_L2_line = 0
@@ -108,7 +108,7 @@ find_position = 0
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
 from_day = "2024-01-01"
-to_day = '2024-01-20'
+to_day = '2024-03-01'
 
 # data_m15 = "data/AUDUSD_M15.csv"
 # data_h1 = "data/AUDUSD_H1.csv"
@@ -320,23 +320,23 @@ h1['L1_down_val'] = h1.apply(lambda row: min(row['Low'], row['Low_shifted']) if 
 h1.drop(columns=['High_shifted'], inplace=True)
 h1.drop(columns=['Low_shifted'], inplace=True)
 
-# 
-# h1['L1_up_val'] = h1['L1_up_val'].fillna(False)
-# h1['L1_down_val'] = h1['L1_down_val'].fillna(False)
-
 h1 = process_swing(h1, 'L1_down', 'L1_down_valine', 'L1_down_val')
 h1 = process_swing(h1, 'L1_up', 'L1_up_valine', 'L1_up_val')
+
 L1_up_val = h1[h1['L1_up_val'].notna()]
 L1_up_val_list = copy.deepcopy(L1_up_val['L1_up_val'])
 L1_up_val_list.index = L1_up_val_list.index.shift(1, freq = 'h')
-
 
 L1_down_val = h1[h1['L1_down_val'].notna()]
 L1_down_val_list = copy.deepcopy(L1_down_val['L1_down_val'])
 L1_down_val_list.index = L1_down_val_list.index.shift(1, freq = 'h')
 
-m15['L1_up_val'] = L1_up_val_list.reindex(m15.index, method='ffill')
-m15['L1_down_val'] = L1_down_val_list.reindex(m15.index, method='ffill')
+m15['L1_up_val'] = L1_up_val_list.reindex(m15.index)
+m15['L1_down_val'] = L1_down_val_list.reindex(m15.index)
+m15['L1_up'] = h1['L1_up'].reindex(m15.index)
+m15['L1_down'] = h1['L1_down'].reindex(m15.index)
+m15 = process_swing(m15, 'L1_down', 'L1_down_valine', 'L1_down_val')
+m15 = process_swing(m15, 'L1_up', 'L1_up_valine', 'L1_up_val')
 
 # endregion
 
@@ -351,12 +351,20 @@ h4['L2_up_val'] = h4.apply(lambda row: max(row['High'], row['High_shifted']) if 
 h4['L2_down_val'] = h4.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L2_down'] else None, axis=1)
 h4.drop(columns=['High_shifted'], inplace=True)
 h4.drop(columns=['Low_shifted'], inplace=True)
+
 h4 = process_swing(h4, 'L2_down', 'L2_down_valine', 'L2_down_val')
 h4 = process_swing(h4, 'L2_up', 'L2_up_valine', 'L2_up_val')
-L2_up_val = h4[h4['L2_up_valine'].notna()]
-L2_down_val = h4[h4['L2_down_valine'].notna()]
-m15['L2_up_val'] = L2_up_val['L2_up_val'].reindex(m15.index, method='ffill')
-m15['L2_down_val'] = L2_down_val['L2_down_val'].reindex(m15.index, method='ffill')
+
+L2_up_val = h4[h4['L2_up_val'].notna()]
+L2_up_val_list = copy.deepcopy(L2_up_val['L2_up_val'])
+L2_up_val_list.index = L2_up_val_list.index.shift(1, freq = 'h')
+
+L2_down_val = h4[h4['L2_down_val'].notna()]
+L2_down_val_list = copy.deepcopy(L2_down_val['L2_down_val'])
+L2_down_val_list.index = L2_down_val_list.index.shift(1, freq = 'h')
+
+m15['L2_up_val'] = L2_up_val_list.reindex(m15.index)
+m15['L2_down_val'] = L2_down_val_list.reindex(m15.index)
 
 # endregion
 
@@ -371,12 +379,20 @@ day['L3_up_val'] = day.apply(lambda row: max(row['High'], row['High_shifted']) i
 day['L3_down_val'] = day.apply(lambda row: min(row['Low'], row['Low_shifted']) if row['L3_down'] else None, axis=1)
 day.drop(columns=['High_shifted'], inplace=True)
 day.drop(columns=['Low_shifted'], inplace=True)
+
 day = process_swing(day, 'L3_down', 'L3_down_valine', 'L3_down_val')
 day = process_swing(day, 'L3_up', 'L3_up_valine', 'L3_up_val')
-L3_up_val = day[day['L3_up_valine'].notna()]
-L3_down_val = day[day['L3_down_valine'].notna()]
-m15['L3_up_val'] = L3_up_val['L3_up_val'].reindex(m15.index, method='ffill')
-m15['L3_down_val'] = L3_down_val['L3_down_val'].reindex(m15.index, method='ffill')
+
+L3_up_val = day[day['L3_up_val'].notna()]
+L3_up_val_list = copy.deepcopy(L3_up_val['L3_up_val'])
+L3_up_val_list.index = L3_up_val_list.index.shift(1, freq = 'h')
+
+L3_down_val = day[day['L3_down_val'].notna()]
+L3_down_val_list = copy.deepcopy(L3_down_val['L3_down_val'])
+L3_down_val_list.index = L3_down_val_list.index.shift(1, freq = 'h')
+
+m15['L3_up_val'] = L3_up_val_list.reindex(m15.index)
+m15['L3_down_val'] = L3_down_val_list.reindex(m15.index)
 
 # endregion
 
