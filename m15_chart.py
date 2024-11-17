@@ -40,6 +40,8 @@ frtl_day = 5
 
 upper_band = 0.8 # 0.7 0.75 0.8 0.85 0.9
 lower_band = 0.2 # 0.1 0.15 0.2 0.25 0.3
+upper_band_L3 = 0.7
+lower_band_L3 = 0.3
 
 frtl_2 = 2
 
@@ -75,7 +77,7 @@ plot_closed = 0
 
 # region VARIABLES FRACTALS
 plot_L0 = 0
-plot_L1 = 1
+plot_L1 = 0
 plot_L2 = 0
 plot_L3 = 0
 plot_L0_line = 0
@@ -90,10 +92,14 @@ plot_L2_pre_line = 0
 plot_L3_line = 0
 plot_L3_pre_line = 0
 
-plot_L0_zigzag = 1
-plot_L1_zigzag = 1
-plot_L2_zigzag = 1
-plot_L3_zigzag = 1
+plot_L0_zigzag = 0
+plot_L1_zigzag = 0
+plot_L2_zigzag = 0
+plot_L3_zigzag = 0
+
+trace_L1 = 1
+trace_L2 = 0
+trace_L3 = 1
 
 # endregion
 
@@ -107,20 +113,21 @@ find_position = 0
 
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
-from_day = "2024-01-01"
-to_day = '2024-03-01'
+from_day = "2018-01-01"
+to_day = '2018-02-01'
 
-# data_m15 = "data/AUDUSD_M15.csv"
-# data_h1 = "data/AUDUSD_H1.csv"
-# data_h4 = "data/AUDUSD_H4.csv"
-# data_d1 = "data/AUDUSD_D.csv"
+data_m15 = "data/AUDUSD_M15.csv"
+data_h1 = "data/AUDUSD_H1.csv"
+data_h4 = "data/AUDUSD_H4.csv"
+data_d1 = "data/AUDUSD_D.csv"
 
 csv_name = "result/AU_2024_Jan_September.csv"
 
-data_d1 = "data/AU_D_2024.csv"
-data_h4 = "data/AU_H4_2024.csv"
-data_h1 = "data/AU_H1_2024.csv"
-data_m15 = "data/AU_M15_2024.csv"
+# data_d1 = "data/AU_D_2024.csv"
+# data_h4 = "data/AU_H4_2024.csv"
+# data_h1 = "data/AU_H1_2024.csv"
+# data_m15 = "data/AU_M15_2024.csv"
+
 # endregion
 
 # region IMPORT DATA
@@ -235,6 +242,7 @@ swl_m15_2 = m15[m15['frtl_2_low']]
 # endregion
 
 # region MAP DATA TO 15MIN
+# Create continuous points of swing high low
 
 m15['sh_h1'] = swh_line_h1['sh_h1'].reindex(m15.index, method='ffill')
 m15['sl_h1'] = swl_line_h1['sl_h1'].reindex(m15.index, method='ffill')
@@ -335,8 +343,8 @@ m15['L1_up_val'] = L1_up_val_list.reindex(m15.index)
 m15['L1_down_val'] = L1_down_val_list.reindex(m15.index)
 m15['L1_up'] = h1['L1_up'].reindex(m15.index)
 m15['L1_down'] = h1['L1_down'].reindex(m15.index)
-m15 = process_swing(m15, 'L1_down', 'L1_down_valine', 'L1_down_val')
-m15 = process_swing(m15, 'L1_up', 'L1_up_valine', 'L1_up_val')
+m15['L1_down_valine'] = L1_down_val_list.reindex(m15.index, method='ffill')
+m15['L1_up_valine'] = L1_up_val_list.reindex(m15.index, method='ffill')
 
 # endregion
 
@@ -357,14 +365,16 @@ h4 = process_swing(h4, 'L2_up', 'L2_up_valine', 'L2_up_val')
 
 L2_up_val = h4[h4['L2_up_val'].notna()]
 L2_up_val_list = copy.deepcopy(L2_up_val['L2_up_val'])
-L2_up_val_list.index = L2_up_val_list.index.shift(1, freq = 'h')
+L2_up_val_list.index = L2_up_val_list.index.shift(4, freq = 'h')
 
 L2_down_val = h4[h4['L2_down_val'].notna()]
 L2_down_val_list = copy.deepcopy(L2_down_val['L2_down_val'])
-L2_down_val_list.index = L2_down_val_list.index.shift(1, freq = 'h')
+L2_down_val_list.index = L2_down_val_list.index.shift(4, freq = 'h')
 
 m15['L2_up_val'] = L2_up_val_list.reindex(m15.index)
 m15['L2_down_val'] = L2_down_val_list.reindex(m15.index)
+m15['L2_down_valine'] = L2_down_val_list.reindex(m15.index, method='ffill')
+m15['L2_up_valine'] = L2_up_val_list.reindex(m15.index, method='ffill')
 
 # endregion
 
@@ -385,15 +395,46 @@ day = process_swing(day, 'L3_up', 'L3_up_valine', 'L3_up_val')
 
 L3_up_val = day[day['L3_up_val'].notna()]
 L3_up_val_list = copy.deepcopy(L3_up_val['L3_up_val'])
-L3_up_val_list.index = L3_up_val_list.index.shift(1, freq = 'h')
+L3_up_val_list.index = L3_up_val_list.index.shift(24, freq = 'h')
 
 L3_down_val = day[day['L3_down_val'].notna()]
 L3_down_val_list = copy.deepcopy(L3_down_val['L3_down_val'])
-L3_down_val_list.index = L3_down_val_list.index.shift(1, freq = 'h')
+L3_down_val_list.index = L3_down_val_list.index.shift(24, freq = 'h')
 
 m15['L3_up_val'] = L3_up_val_list.reindex(m15.index)
 m15['L3_down_val'] = L3_down_val_list.reindex(m15.index)
+m15['L3_up'] = day['L3_up'].reindex(m15.index)
+m15['L3_down'] = day['L3_down'].reindex(m15.index)
+m15['L3_down_valine'] = L3_down_val_list.reindex(m15.index, method='ffill')
+m15['L3_up_valine'] = L3_up_val_list.reindex(m15.index, method='ffill')
 
+# endregion
+
+# region CREATE L1 TRACE ZONE
+m15['L1_big'] = m15[['L1_down_valine', 'L1_up_valine']].max(axis=1)
+m15['L1_small'] = m15[['L1_down_valine', 'L1_up_valine']].min(axis=1)
+m15['L1_up'] = m15['L1_small'] + (m15['L1_big'] - m15['L1_small']) * upper_band_L3
+m15['L1_down'] = m15['L1_small'] + (m15['L1_big'] - m15['L1_small'])* lower_band_L3
+m15['L1_up_cal'] = m15['L1_up'].fillna(1.0)
+m15['L1_down_cal'] = m15['L1_down'].fillna(1.0)
+# endregion
+
+# region CREATE L2 TRACE ZONE
+m15['L2_big'] = m15[['L2_down_valine', 'L2_up_valine']].max(axis=1)
+m15['L2_small'] = m15[['L2_down_valine', 'L2_up_valine']].min(axis=1)
+m15['L2_up'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small']) * upper_band_L3
+m15['L2_down'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small'])* lower_band_L3
+m15['L2_up_cal'] = m15['L2_up'].fillna(1.0)
+m15['L2_down_cal'] = m15['L2_down'].fillna(1.0)
+# endregion
+
+# region CREATE L3 TRACE ZONE
+m15['L3_big'] = m15[['L3_down_valine', 'L3_up_valine']].max(axis=1)
+m15['L3_small'] = m15[['L3_down_valine', 'L3_up_valine']].min(axis=1)
+m15['L3_up'] = m15['L3_small'] + (m15['L3_big'] - m15['L3_small']) * upper_band_L3
+m15['L3_down'] = m15['L3_small'] + (m15['L3_big'] - m15['L3_small'])* lower_band_L3
+m15['L3_up_cal'] = m15['L3_up'].fillna(1.0)
+m15['L3_down_cal'] = m15['L3_down'].fillna(1.0)
 # endregion
 
 # region CREATE ZIGZAG
@@ -615,8 +656,8 @@ if plot_L0 == 1:
     plot_marker(fig, go, m15.index, m15['L0_down_val'], 'markers', 'circle', 'cyan', 7, name = 'L0_down')
 
 if plot_L1 == 1:
-    plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0002, 'markers', 'circle', 'orange', 7, 'L1_up')
-    plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0002, 'markers', 'circle', 'yellow', 7, 'L1_down')
+    plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0002, 'markers', 'circle', 'orange', 5, 'L1_up')
+    plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0002, 'markers', 'circle', 'yellow', 5, 'L1_down')
 
 if plot_L2 == 1:
     plot_marker(fig, go, m15.index, m15['L2_up_val'] + 0.0004, 'markers', 'circle', 'green', 7, 'L2_up')
@@ -635,8 +676,12 @@ if plot_L0_pre_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_pre_1'], 'lines', 2, 'green', 'L0 down previous')    
 
 if plot_L1_line == 1:
-    plot_line(fig, go, m15.index, m15['L1_down_valine'], 'lines', 2, 'yellow', 'L1 down line')
-    plot_line(fig, go, m15.index, m15['L1_up_valine'], 'lines', 2, 'orange', 'L1 up line')
+    plot_marker(fig, go, m15.index, m15['L1_down_valine'], 'markers', 'circle-dot', 'yellow', 2, 'L1 down line')
+    plot_marker(fig, go, m15.index, m15['L1_up_valine'], 'markers', 'circle-dot', 'orange', 2, 'L1 up line')
+
+if plot_L3_line == 1:
+    plot_marker(fig, go, m15.index, m15['L3_down_valine'], 'markers', 'circle-dot', 'yellow', 2, 'L3 down line')
+    plot_marker(fig, go, m15.index, m15['L3_up_valine'], 'markers', 'circle-dot', 'orange', 2, 'L3 up line')    
 
 if plot_L0_zigzag == 1:
     plot_line(fig, go, m15.index, m15['L0_zigzag'], 'lines', 1, 'cyan', 'L0_zigzag')
@@ -649,6 +694,54 @@ if plot_L2_zigzag == 1:
 
 if plot_L3_zigzag == 1:
     plot_line(fig, go, m15.index, m15['L3_zigzag'], 'lines', 2, 'RED', 'L3_zigzag')       
+
+if trace_L1 == 1:
+    # upper band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L1_big'].tolist() + m15['L1_up'].tolist()[::-1],
+                'toself',
+                'rgba(255 ,0 , 232, 0.2)',
+                dict(color='rgba(0,0,0,0)'))
+    # lower_band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L1_down'].tolist() + m15['L1_small'].tolist()[::-1],
+                'toself',
+                'rgba(236, 0, 255, 0.2)',
+                dict(color='rgba(0,0,0,0)'))
+
+if trace_L2 == 1:
+    # upper band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L2_big'].tolist() + m15['L2_up'].tolist()[::-1],
+                'toself',
+                'rgba(255 ,0 , 0, 0.2)',
+                dict(color='rgba(0,0,0,0)'))
+    # lower_band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L2_down'].tolist() + m15['L2_small'].tolist()[::-1],
+                'toself',
+                'rgba(255, 255, 0, 0.2)',
+                dict(color='rgba(0,0,0,0)'))
+
+if trace_L3 == 1:
+    # upper band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L3_big'].tolist() + m15['L3_up'].tolist()[::-1],
+                'toself',
+                'rgba(0,255,255,0.2)',
+                dict(color='rgba(0,0,0,0)'))
+    # lower_band
+    plot_trace( fig, go, 
+                m15.index.tolist() + m15.index.tolist()[::-1],
+                m15['L3_down'].tolist() + m15['L3_small'].tolist()[::-1],
+                'toself',
+                'rgba(0,255,0,0.2)',
+                dict(color='rgba(0,0,0,0)'))
 
 # endregion
 
