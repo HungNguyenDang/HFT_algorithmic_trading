@@ -76,17 +76,17 @@ plot_closed = 0
 # endregion
 
 # region VARIABLES FRACTALS
-plot_L0 = 0
+plot_L0 = 1
 plot_L1 = 0
 plot_L2 = 0
 plot_L3 = 0
 plot_L0_line = 0
 plot_L0_pre_line = 0
 
-plot_L1_line = 1
+plot_L1_line = 0
 plot_L1_pre_line = 0
 
-plot_L2_line = 0
+plot_L2_line = 1
 plot_L2_pre_line = 0
 
 plot_L3_line = 0
@@ -97,24 +97,28 @@ plot_L1_zigzag = 0
 plot_L2_zigzag = 0
 plot_L3_zigzag = 0
 
-trace_L1 = 1
+trace_L1 = 0
 trace_L2 = 0
 trace_L3 = 1
 
 # endregion
 
-# region VARIABLES PLOT ALL, INPUT DATA
+# region VARIABLES PLOT ALL, INPUT DATA, color variables
 
+# Plot cummulative returns in %
 plot_cumret = 0
+# Plot to html file
 plot_all = 1
 
+# save all positions to a csv file
 generate_result = 0
+# calculate positions entry, SL, TP
 find_position = 0
 
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
-from_day = "2018-01-01"
-to_day = '2018-02-01'
+from_day = "2022-01-01"
+to_day = '2022-03-01'
 
 data_m15 = "data/AUDUSD_M15.csv"
 data_h1 = "data/AUDUSD_H1.csv"
@@ -127,6 +131,16 @@ csv_name = "result/AU_2024_Jan_September.csv"
 # data_h4 = "data/AU_H4_2024.csv"
 # data_h1 = "data/AU_H1_2024.csv"
 # data_m15 = "data/AU_M15_2024.csv"
+
+violet = 'rgba(255, 87 , 51, 0.2)'
+gray = 'rgba(213, 216, 220, 0.2)'
+green = 'rgba(0, 255, 0, 0.2)'
+red = 'rgba(255, 0, 0, 0.2)'
+blue = 'rgba(0, 0, 255, 0.2)'
+yellow = 'rgba(255, 255, 0, 0.2)'
+pink = 'rgba(255, 0, 255, 0.2)'
+orange = 'rgba(255, 138, 101, 0.2)'
+ocean = 'rgba(41, 182, 246, 0.2)'
 
 # endregion
 
@@ -676,24 +690,28 @@ if plot_L0_pre_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_pre_1'], 'lines', 2, 'green', 'L0 down previous')    
 
 if plot_L1_line == 1:
-    plot_marker(fig, go, m15.index, m15['L1_down_valine'], 'markers', 'circle-dot', 'yellow', 2, 'L1 down line')
-    plot_marker(fig, go, m15.index, m15['L1_up_valine'], 'markers', 'circle-dot', 'orange', 2, 'L1 up line')
+    plot_marker(fig, go, m15.index, m15['L1_down_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 down line')
+    plot_marker(fig, go, m15.index, m15['L1_up_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 up line')
+
+if plot_L2_line == 1:
+    plot_marker(fig, go, m15.index, m15['L2_down_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 down line')
+    plot_marker(fig, go, m15.index, m15['L2_up_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 up line')
 
 if plot_L3_line == 1:
-    plot_marker(fig, go, m15.index, m15['L3_down_valine'], 'markers', 'circle-dot', 'yellow', 2, 'L3 down line')
-    plot_marker(fig, go, m15.index, m15['L3_up_valine'], 'markers', 'circle-dot', 'orange', 2, 'L3 up line')    
+    plot_marker(fig, go, m15.index, m15['L3_down_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 down line')
+    plot_marker(fig, go, m15.index, m15['L3_up_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 up line')    
 
 if plot_L0_zigzag == 1:
     plot_line(fig, go, m15.index, m15['L0_zigzag'], 'lines', 1, 'cyan', 'L0_zigzag')
 
 if plot_L1_zigzag == 1:
-    plot_line(fig, go, m15.index, m15['L1_zigzag'], 'lines', 2, 'orange', 'L1_zigzag')
+    plot_line(fig, go, m15.index, m15['L1_zigzag'], 'lines', 2, 'gray', 'L1_zigzag')
 
 if plot_L2_zigzag == 1:
-    plot_line(fig, go, m15.index, m15['L2_zigzag'], 'lines', 2, 'GREEN', 'L2_zigzag')       
+    plot_line(fig, go, m15.index, m15['L2_zigzag'], 'lines', 2, 'blue', 'L2_zigzag')       
 
 if plot_L3_zigzag == 1:
-    plot_line(fig, go, m15.index, m15['L3_zigzag'], 'lines', 2, 'RED', 'L3_zigzag')       
+    plot_line(fig, go, m15.index, m15['L3_zigzag'], 'lines', 2, 'orange', 'L3_zigzag')       
 
 if trace_L1 == 1:
     # upper band
@@ -701,14 +719,14 @@ if trace_L1 == 1:
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L1_big'].tolist() + m15['L1_up'].tolist()[::-1],
                 'toself',
-                'rgba(255 ,0 , 232, 0.2)',
+                gray,
                 dict(color='rgba(0,0,0,0)'))
     # lower_band
     plot_trace( fig, go, 
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L1_down'].tolist() + m15['L1_small'].tolist()[::-1],
                 'toself',
-                'rgba(236, 0, 255, 0.2)',
+                gray,
                 dict(color='rgba(0,0,0,0)'))
 
 if trace_L2 == 1:
@@ -717,14 +735,14 @@ if trace_L2 == 1:
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L2_big'].tolist() + m15['L2_up'].tolist()[::-1],
                 'toself',
-                'rgba(255 ,0 , 0, 0.2)',
+                ocean,
                 dict(color='rgba(0,0,0,0)'))
     # lower_band
     plot_trace( fig, go, 
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L2_down'].tolist() + m15['L2_small'].tolist()[::-1],
                 'toself',
-                'rgba(255, 255, 0, 0.2)',
+                ocean,
                 dict(color='rgba(0,0,0,0)'))
 
 if trace_L3 == 1:
@@ -733,14 +751,14 @@ if trace_L3 == 1:
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L3_big'].tolist() + m15['L3_up'].tolist()[::-1],
                 'toself',
-                'rgba(0,255,255,0.2)',
+                orange,
                 dict(color='rgba(0,0,0,0)'))
     # lower_band
     plot_trace( fig, go, 
                 m15.index.tolist() + m15.index.tolist()[::-1],
                 m15['L3_down'].tolist() + m15['L3_small'].tolist()[::-1],
                 'toself',
-                'rgba(0,255,0,0.2)',
+                orange,
                 dict(color='rgba(0,0,0,0)'))
 
 # endregion
@@ -769,8 +787,8 @@ if plot_all ==1 :
 # endregion
 
 # region GENERATE CSV FILE
+result = select_positions[['entry', 'stop_loss', 'take_profit', 'lot']]
 if generate_result == 1:
-    result = select_positions[['entry', 'stop_loss', 'take_profit', 'lot']]
     result.to_csv(csv_name, header=False)
     print(len(select_positions))
 # endregion
@@ -778,7 +796,7 @@ if generate_result == 1:
 # region PRINT
 
 # print(select_positions[['R', 'R_half']])
-# print("sum R: ", sum(select_positions['R']))
+print("sum R: ", sum(select_positions['R']))
 # print("sum R_half: ", sum(select_positions['R_half']))
 
 # print(sharpe)
