@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
 import copy
+import math
 
 from helpers import calc_swing_highs
 from helpers import calc_swing_lows
@@ -40,8 +41,6 @@ frtl_day = 5
 
 upper_band = 0.8 # 0.7 0.75 0.8 0.85 0.9
 lower_band = 0.2 # 0.1 0.15 0.2 0.25 0.3
-upper_band_L3 = 0.7
-lower_band_L3 = 0.3
 
 frtl_2 = 2
 
@@ -62,7 +61,7 @@ trace_h4 = 0
 
 trace_atr = 0
 
-trace_sell_cond = 0
+trace_sell_cond = 1
 
 plot_pre_sh_h1_1 = 0
 plot_pre_sh_h1_2 = 0
@@ -76,8 +75,8 @@ plot_closed = 0
 # endregion
 
 # region VARIABLES FRACTALS
-plot_L0 = 1
-plot_L1 = 0
+plot_L0 = 0
+plot_L1 = 1
 plot_L2 = 0
 plot_L3 = 0
 plot_L0_line = 0
@@ -98,8 +97,17 @@ plot_L2_zigzag = 0
 plot_L3_zigzag = 0
 
 trace_L1 = 0
-trace_L2 = 0
+trace_L2 = 1
 trace_L3 = 1
+
+upper_band_L3 = 0.75
+lower_band_L3 = 0.25
+
+upper_band_L2 = 0.75
+lower_band_L2 = 0.25
+
+upper_band_L1 = 0.75
+lower_band_L1 = 0.25
 
 # endregion
 
@@ -113,12 +121,12 @@ plot_all = 1
 # save all positions to a csv file
 generate_result = 0
 # calculate positions entry, SL, TP
-find_position = 0
+find_position = 1
 
 format_day = "%d/%m/%Y"
 format_hour = "%d/%m/%Y %H:%M"
 from_day = "2022-01-01"
-to_day = '2022-03-01'
+to_day = '2022-02-01'
 
 data_m15 = "data/AUDUSD_M15.csv"
 data_h1 = "data/AUDUSD_H1.csv"
@@ -387,6 +395,8 @@ L2_down_val_list.index = L2_down_val_list.index.shift(4, freq = 'h')
 
 m15['L2_up_val'] = L2_up_val_list.reindex(m15.index)
 m15['L2_down_val'] = L2_down_val_list.reindex(m15.index)
+m15['L2_up'] = h4['L2_up'].reindex(m15.index)
+m15['L2_down'] = h4['L2_down'].reindex(m15.index)
 m15['L2_down_valine'] = L2_down_val_list.reindex(m15.index, method='ffill')
 m15['L2_up_valine'] = L2_up_val_list.reindex(m15.index, method='ffill')
 
@@ -436,8 +446,8 @@ m15['L1_down_cal'] = m15['L1_down'].fillna(1.0)
 # region CREATE L2 TRACE ZONE
 m15['L2_big'] = m15[['L2_down_valine', 'L2_up_valine']].max(axis=1)
 m15['L2_small'] = m15[['L2_down_valine', 'L2_up_valine']].min(axis=1)
-m15['L2_up'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small']) * upper_band_L3
-m15['L2_down'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small'])* lower_band_L3
+m15['L2_up'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small']) * upper_band_L2
+m15['L2_down'] = m15['L2_small'] + (m15['L2_big'] - m15['L2_small'])* lower_band_L2
 m15['L2_up_cal'] = m15['L2_up'].fillna(1.0)
 m15['L2_down_cal'] = m15['L2_down'].fillna(1.0)
 # endregion
@@ -466,7 +476,7 @@ m15['L3_zigzag'] = m15['L3_zigzag'].interpolate()
 
 #endregion
 
-# region SELL CONDITION
+# region SELL CONDITION EX1
 
 # the previous candle's high is in the upper h1 band
 sell_cond_1 = m15['High'].between(m15['h1_up_cal'], m15['h1_big_cal'], inclusive='both')
@@ -483,9 +493,32 @@ confirm_sell_3 = m15['Close'] <= m15['Open']
 confirm_sell_4 = m15['High'] <= m15['h1_big_cal']
 # the current h1 upper band is lower than the previous, indicate a down trend
 confirm_sell_5 = m15['sh_h1'] <= m15['sh_h1_pre1']
-confirm_sell = confirm_sell_1 & confirm_sell_2 & confirm_sell_3 & confirm_sell_4 & confirm_sell_5           
-m15['show_sell_cond'] = m15['High'].where(confirm_sell == True, None)
 
+
+# confirm_sell = confirm_sell_1 & confirm_sell_2 & confirm_sell_3 & confirm_sell_4 & confirm_sell_5           
+# m15['show_sell_cond'] = m15['High'].where(confirm_sell == True, None)
+
+# endregion
+
+# region SELL CONDITION EX2
+
+# candle formation
+bull_bar = m15['Open'] < m15['Close']
+bear_bar = m15['Open'] > m15['Close']
+doji_bar = m15['Open'] == m15['Open']
+length_bar = abs(m15['Open'] - m15['Close'])
+
+# bear_bull_bull
+candle_bounce_up = bear_bar.shift(2) & bull_bar.shift(1) & bull_bar
+
+# bull_bear_bear
+candle_bounce_down = bull_bar.shift(2) & bear_bar.shift(1) & bear_bar
+
+# bar test the low L2 trace zone, not exceeding that
+test_L2_low = (m15['Low'] > m15['L2_small']) & (m15['Low'] < m15['L2_down']) & (m15['Open'] < (m15['L2_up_cal'] + m15['L2_down_cal'])/2)
+
+confirm_sell = (m15['L2_down'] > 0) & test_L2_low
+m15['show_sell_cond'] = m15['Low'].where(confirm_sell == True, None)
 # endregion
 
 # region POSITIONS series
@@ -633,11 +666,11 @@ if trace_atr == 1:
 
 if trace_sell_cond == 1:
     # sell condition
-    plot_marker(fig, go, m15.index, m15['show_sell_cond'], 'markers', 'circle', 'red', 10, 'show sell condition')
+    plot_marker(fig, go, m15.index, m15['show_sell_cond'], 'markers', 'circle', 'rgba(0, 255, 0, 1)', 10, 'show sell condition')
 
 if plot_entry == 1:
     # sell condition
-    plot_marker(fig, go, select_positions.index, select_positions['entry'], 'markers', 'circle', 'blue', 10, 'entry')
+    plot_marker(fig, go, select_positions.index, select_positions['entry'], 'markers', 'circle', 'green', 10, 'entry')
 
 if plot_stop_loss == 1:
     # sell condition
@@ -666,20 +699,20 @@ if plot_pre_sh_h1_3 == 1:
 # region PLOT FRACTAL
 
 if plot_L0 == 1:
-    plot_marker(fig, go, m15.index, m15['L0_up_val'], 'markers', 'circle', 'blue', 7, name = 'L0_up')
-    plot_marker(fig, go, m15.index, m15['L0_down_val'], 'markers', 'circle', 'cyan', 7, name = 'L0_down')
+    plot_marker(fig, go, m15.index, m15['L0_up_val'], 'markers', 'circle', 'purple', 6, name = 'L0_up')
+    plot_marker(fig, go, m15.index, m15['L0_down_val'], 'markers', 'circle', 'purple', 6, name = 'L0_down')
 
 if plot_L1 == 1:
-    plot_marker(fig, go, m15.index, m15['L1_up_val'] + 0.0002, 'markers', 'circle', 'orange', 5, 'L1_up')
-    plot_marker(fig, go, m15.index, m15['L1_down_val'] - 0.0002, 'markers', 'circle', 'yellow', 5, 'L1_down')
+    plot_marker(fig, go, m15.index, m15['L1_up_val'], 'markers', 'circle', 'gray', 6, 'L1_up')
+    plot_marker(fig, go, m15.index, m15['L1_down_val'], 'markers', 'circle', 'gray', 6, 'L1_down')
 
 if plot_L2 == 1:
-    plot_marker(fig, go, m15.index, m15['L2_up_val'] + 0.0004, 'markers', 'circle', 'green', 7, 'L2_up')
-    plot_marker(fig, go, m15.index, m15['L2_down_val'] - 0.0004, 'markers', 'circle', 'green', 7, 'L2_down')
+    plot_marker(fig, go, m15.index, m15['L2_up_val'], 'markers', 'circle', 'blue', 6, 'L2_up')
+    plot_marker(fig, go, m15.index, m15['L2_down_val'], 'markers', 'circle', 'blue', 6, 'L2_down')
 
 if plot_L3 == 1:
-    plot_marker(fig, go, m15.index, m15['L3_up_val'] + 0.0006, 'markers', 'circle', 'red', 7, 'L3_up')
-    plot_marker(fig, go, m15.index, m15['L3_down_val'] - 0.0006, 'markers', 'circle', 'red', 7, 'L3_down')
+    plot_marker(fig, go, m15.index, m15['L3_up_val'], 'markers', 'circle', 'orange', 6, 'L3_up')
+    plot_marker(fig, go, m15.index, m15['L3_down_val'], 'markers', 'circle', 'oranges', 6, 'L3_down')
 
 if plot_L0_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_valine'], 'lines', 2, 'cyan', 'L0 down line')
@@ -690,16 +723,22 @@ if plot_L0_pre_line == 1:
     plot_line(fig, go, m15.index, m15['L0_down_pre_1'], 'lines', 2, 'green', 'L0 down previous')    
 
 if plot_L1_line == 1:
-    plot_marker(fig, go, m15.index, m15['L1_down_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 down line')
-    plot_marker(fig, go, m15.index, m15['L1_up_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 up line')
+    plot_line(fig, go, m15.index, m15['L1_down_valine'], 'lines', 2, 'gray', 'L1 down line')
+    plot_line(fig, go, m15.index, m15['L1_up_valine'], 'lines', 2, 'gray', 'L1 up line')    
+    # plot_marker(fig, go, m15.index, m15['L1_down_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 down line')
+    # plot_marker(fig, go, m15.index, m15['L1_up_valine'], 'markers', 'circle-dot', 'gray', 5, 'L1 up line')
 
 if plot_L2_line == 1:
-    plot_marker(fig, go, m15.index, m15['L2_down_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 down line')
-    plot_marker(fig, go, m15.index, m15['L2_up_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 up line')
+    plot_line(fig, go, m15.index, m15['L2_down_valine'], 'lines', 2, 'blue', 'L2 down line')
+    plot_line(fig, go, m15.index, m15['L2_up_valine'], 'lines', 2, 'blue', 'L2 up line')
+    # plot_marker(fig, go, m15.index, m15['L2_down_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 down line')
+    # plot_marker(fig, go, m15.index, m15['L2_up_valine'], 'markers', 'circle-dot', 'blue', 5, 'L2 up line')
 
 if plot_L3_line == 1:
-    plot_marker(fig, go, m15.index, m15['L3_down_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 down line')
-    plot_marker(fig, go, m15.index, m15['L3_up_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 up line')    
+    plot_line(fig, go, m15.index, m15['L3_down_valine'], 'lines', 2, 'orange', 'L3 down line')
+    plot_line(fig, go, m15.index, m15['L3_up_valine'], 'lines', 2, 'orange', 'L3 up line')
+    # plot_marker(fig, go, m15.index, m15['L3_down_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 down line')
+    # plot_marker(fig, go, m15.index, m15['L3_up_valine'], 'markers', 'circle-dot', 'orange', 5, 'L3 up line')    
 
 if plot_L0_zigzag == 1:
     plot_line(fig, go, m15.index, m15['L0_zigzag'], 'lines', 1, 'cyan', 'L0_zigzag')
