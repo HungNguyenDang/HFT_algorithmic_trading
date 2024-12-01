@@ -1,3 +1,13 @@
+import pandas as pd
+from pymongo import MongoClient
+import MetaTrader5 as mt5
+from datetime import datetime, timedelta
+import tkinter as tk
+import numpy as np
+
+client = MongoClient('localhost', 27017)
+db = client['trading101']
+
 def increase_date(entry):
     current_date = datetime.strptime(entry.get(), "%Y-%m-%d")
     new_date = current_date + timedelta(days=1)
@@ -14,8 +24,8 @@ def calc_swing_highs(df, period, column):
     df[column] = False
     
     for i in range(period, len(df) - period):
-        high = df['High'].iloc[i]
-        if all(high >= df['High'].iloc[i - j] for j in range(1, period+1)) and all(high >= df['High'].iloc[i + j] for j in range(1, period+1)):
+        high = df['high'].iloc[i]
+        if all(high >= df['high'].iloc[i - j] for j in range(1, period+1)) and all(high >= df['high'].iloc[i + j] for j in range(1, period+1)):
             df.at[df.index[i], column] = True
     return df
 
@@ -23,8 +33,8 @@ def calc_swing_lows(df, period, column):
     df[column] = False
     
     for i in range(period, len(df) - period):
-        low = df['Low'].iloc[i]
-        if all(low <= df['Low'].iloc[i - j] for j in range(1, period+1)) and all(low <= df['Low'].iloc[i + j] for j in range(1, period+1)):
+        low = df['low'].iloc[i]
+        if all(low <= df['low'].iloc[i - j] for j in range(1, period+1)) and all(low <= df['low'].iloc[i + j] for j in range(1, period+1)):
             df.at[df.index[i], column] = True
     return df
 
@@ -43,9 +53,9 @@ def process_swing(df, collumn, output, type):
 
 def true_range(df):
     import numpy as np
-    df['High-Low'] = df['High'] - df['Low']
-    df['High-Close'] = np.abs(df['High'] - df['Close'].shift(1))
-    df['Low-Close'] = np.abs(df['Low'] - df['Close'].shift(1))
+    df['High-Low'] = df['high'] - df['low']
+    df['High-Close'] = np.abs(df['high'] - df['close'].shift(1))
+    df['Low-Close'] = np.abs(df['low'] - df['close'].shift(1))
     df['TR'] = df[['High-Low', 'High-Close', 'Low-Close']].max(axis=1)
     return df
 
@@ -76,9 +86,6 @@ def atr(df, length=14, smoothing='RMA'):
     return df
 
 def find_previous_swing(row, list, order, value):
-    import numpy as np
-    import pandas as pd
-
     swing = row[value]
     if pd.isna(swing):
         return np.nan
@@ -139,17 +146,17 @@ def check_positions(candles, positions, entry, stop_loss, take_profit, closed):
         candle_subset = candles.loc[pos_index:]
         
         for candle_index, candle in candle_subset.iterrows():
-            if candle['High'] >= position[stop_loss]:
+            if candle['high'] >= position[stop_loss]:
                 positions.at[pos_index, closed] = position[stop_loss]
                 break
-            elif candle['Low'] <= position[take_profit]:
+            elif candle['low'] <= position[take_profit]:
                 positions.at[pos_index, closed] = position[take_profit]
                 break
-            elif candle['Low'] <= (position[entry]+position[take_profit])/2:
+            elif candle['low'] <= (position[entry]+position[take_profit])/2:
                 positions.at[pos_index, 'half'] = True
                 positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
             else:
-                positions.at[pos_index, closed] = candle['Close']  # Position still open
+                positions.at[pos_index, closed] = candle['close']  # Position still open
             positions.at[pos_index, "closed_time"] = candle_index
     return positions
 
@@ -208,14 +215,14 @@ def finding_fractal(df, L1_up, L1_down, L1_up_val, L1_down_val, L0_up_val, L0_do
 
     # Mark L1 turning points
     for i in range(1, len(df)):
-        if last_L0_high and last_L0_low and last_L0_low_index > last_L0_high_index and df['High'].iloc[i] > last_L0_high:
+        if last_L0_high and last_L0_low and last_L0_low_index > last_L0_high_index and df['high'].iloc[i] > last_L0_high:
             df.at[df.index[i], L1_up] = True
-            df.at[df.index[i], L1_up_val] = df['High'].iloc[i]
+            df.at[df.index[i], L1_up_val] = df['high'].iloc[i]
             last_L0_high = None  # Reset after marking L1 high
 
-        if last_L0_low and last_L0_high and last_L0_high_index > last_L0_low_index and df['Low'].iloc[i] < last_L0_low:
+        if last_L0_low and last_L0_high and last_L0_high_index > last_L0_low_index and df['low'].iloc[i] < last_L0_low:
             df.at[df.index[i], L1_down] = True
-            df.at[df.index[i], L1_down_val] = df['Low'].iloc[i]
+            df.at[df.index[i], L1_down_val] = df['low'].iloc[i]
             last_L0_low = None  # Reset after marking L1 lows
         
         if df[L0_up_val].iloc[i]:
@@ -225,4 +232,13 @@ def finding_fractal(df, L1_up, L1_down, L1_up_val, L1_down_val, L0_up_val, L0_do
             last_L0_low = df[L0_down_val].iloc[i]
             last_L0_low_index = i
 
+    return df
+
+def collection_from_mongodb(collection_name):
+    collection = db[collection_name]
+    data = collection.find({})
+    pair = list(data)
+    df = pd.DataFrame(pair)
+    if '_id' in df.columns:
+        df = df.drop(columns=['_id'])
     return df
