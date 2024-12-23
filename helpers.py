@@ -4,6 +4,7 @@ import MetaTrader5 as mt5
 from datetime import datetime, timedelta
 import tkinter as tk
 import numpy as np
+import plotly.graph_objects as go
 
 client = MongoClient('localhost', 27017)
 db = client['trading101']
@@ -141,38 +142,66 @@ def find_previous_swing_index(row, list, order, value, confirm):
 
 def check_positions(candles, positions, entry, stop_loss, take_profit, closed):
     positions['close_half'] = 0.0
+    # positions[closed] = 0.0
     positions['half'] = False
     for pos_index, position in positions.iterrows():
         candle_subset = candles.loc[pos_index:]
         
         for candle_index, candle in candle_subset.iterrows():
-            if candle['high'] >= position[stop_loss]:
-                positions.at[pos_index, closed] = position[stop_loss]
-                break
-            elif candle['low'] <= position[take_profit]:
-                positions.at[pos_index, closed] = position[take_profit]
-                break
-            elif candle['low'] <= (position[entry]+position[take_profit])/2:
-                positions.at[pos_index, 'half'] = True
-                positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
-            else:
-                positions.at[pos_index, closed] = candle['close']  # Position still open
-            positions.at[pos_index, "closed_time"] = candle_index
+            if position['confirm_buy'] == True:
+                if candle['low'] <= position[stop_loss]:
+                    positions.at[pos_index, closed] = position[stop_loss]
+                    positions.at[pos_index, "closed_time"] = candle_index
+                    break
+                elif candle['high'] >= position[take_profit]:
+                    positions.at[pos_index, closed] = position[take_profit]
+                    positions.at[pos_index, "closed_time"] = candle_index
+                    break
+                elif candle['high'] >= (position[entry]+position[take_profit])/2:
+                    positions.at[pos_index, 'half'] = True
+                    positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
+                else:
+                    positions.at[pos_index, closed] = candle['close']  # Position still open
+            if position['confirm_sell'] == True:
+                if candle['high'] >= position[stop_loss]:
+                    positions.at[pos_index, closed] = position[stop_loss]
+                    positions.at[pos_index, "closed_time"] = candle_index
+                    break
+                elif candle['low'] <= position[take_profit]:
+                    positions.at[pos_index, closed] = position[take_profit]
+                    positions.at[pos_index, "closed_time"] = candle_index
+                    break
+                elif candle['low'] <= (position[entry]+position[take_profit])/2:
+                    positions.at[pos_index, 'half'] = True
+                    positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
+                else:
+                    positions.at[pos_index, closed] = candle['close']  # Position still open
+
+            # 
+            # positions.at[pos_index, "closed_time"] = candle_index
     return positions
 
-def plot_line(fig, go, x, y, mode, width, color, name):   
+def plot_line(fig, x, y, mode, width, color,name):   
     fig.add_trace(go.Scatter(x = x, y= y,
                             mode=mode,
-                            line=dict(width= width, color = color),
-                            name=name))
+                            line=dict(width= width, 
+                                      color = color),
+                                      name=name))
     
-def plot_marker(fig, go, x, y, mode, symbol, color, size, name):
+def plot_line_no_name(fig, x, y, mode, width, color):   
+    fig.add_trace(go.Scatter(x = x, y= y,
+                            mode=mode,
+                            line=dict(width= width, 
+                                      color = color),
+                            showlegend=False))    
+
+def plot_marker(fig, x, y, mode, symbol, color, size, name):
     fig.add_trace(go.Scatter(x = x, y = y,
                             mode = mode,
                             marker = dict(symbol = symbol, color = color, size = size),
                             name = name))
 
-def plot_trace(fig,go, x, y,fill, fillcolor, line):
+def plot_trace(fig, x, y,fill, fillcolor, line):
     fig.add_trace(go.Scatter(
         x=x,
         y=y,
@@ -187,15 +216,15 @@ def cal_sharpe(series):
     sharpeRatio=np.sqrt(len(series))*np.mean(series)/np.std(series)
     return sharpeRatio
 
-def cal_drawdown(np, series):
+def cal_drawdown(series):
     cumret=series.cumsum()
     highwatermark=np.zeros(series.shape)
     drawdown=np.zeros(series.shape)
     drawdownduration=np.zeros(series.shape)
 
     for t in range(1, series.shape[0]):
-        highwatermark[t] = np.maximum(highwatermark[t-1], cumret[t])
-        drawdown[t] = (1 + cumret[t]) / (1 + highwatermark[t]) - 1
+        highwatermark[t] = np.maximum(highwatermark[t-1], cumret.iloc[t])
+        drawdown[t] = (1 + cumret.iloc[t]) / (1 + highwatermark[t]) - 1
         if drawdown[t] == 0:
             drawdownduration[t] = 0
         else:
@@ -242,3 +271,13 @@ def collection_from_mongodb(collection_name):
     if '_id' in df.columns:
         df = df.drop(columns=['_id'])
     return df
+
+def count_check(smt):
+    return (smt.notna() & (smt > 0)).sum()
+
+def two_check(df, smt1, smt2):
+    return df[[smt1, smt2]].notna().all(axis=1).sum()
+
+def three_check(df, smt1, smt2, smt3):
+    return df[[smt1, smt2, smt3]].notna().all(axis=1).sum()
+
