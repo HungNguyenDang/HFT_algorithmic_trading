@@ -67,7 +67,7 @@ trace_h4 = 0
 
 trace_atr = 0
 
-trace_sell_cond = 1
+trace_sell_cond = 0
 
 plot_pre_sh_h1_1 = 0
 plot_pre_sh_h1_2 = 0
@@ -125,7 +125,7 @@ plot_cumret = 0
 plot_all = 1
 
 # save all positions to a csv file
-generate_result = 1
+generate_result = 0
 # calculate positions entry, SL, TP
 find_position = 1
 
@@ -139,10 +139,10 @@ format_hour = '%Y-%m-%d %H:%M'
 from_day = '2022-12-01' # days imported from MongoDb
 to_day = '2024-01-15'
 from_day_cal = '2023-01-01' # days for calculating
-to_day_cal = '2023-12-31'
+to_day_cal = '2023-06-30'
 
 year = datetime.datetime.strptime(to_day_cal, '%Y-%m-%d').year
-csv_name = f"result/AU_{year}.csv"
+csv_name = f"result/AU_{year}_JantoJune.csv"
 # csv_name = "result/AU_2015-2023.csv"
 
 violet = 'rgba(255, 87 , 51, 0.2)'
@@ -520,6 +520,7 @@ bull_bar = m15['open'] < m15['close']
 bear_bar = m15['open'] > m15['close']
 doji_bar = m15['open'] == m15['open']
 length_bar = abs(m15['open'] - m15['close'])
+
 
 # bear_bull_bull
 candle_bounce_up = bear_bar.shift(2) & \
