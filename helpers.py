@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 client = MongoClient('localhost', 27017)
-db = client['trading101']
+db = client['OANDA']
 
 def increase_date(entry):
     current_date = datetime.strptime(entry.get(), "%Y-%m-%d")
