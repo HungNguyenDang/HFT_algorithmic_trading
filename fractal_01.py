@@ -42,12 +42,12 @@ plot_L1_pre_line = 0
 plot_L2_line = 0
 plot_L2_pre_line = 0
 
-plot_L3_line = 1
+plot_L3_line = 0
 plot_L3_pre_line = 0
 
 plot_L0_zigzag = 0
 plot_L1_zigzag = 0
-plot_L2_zigzag = 1
+plot_L2_zigzag = 0
 plot_L3_zigzag = 0
 
 trace_L1 = 0
@@ -64,7 +64,7 @@ upper_band_L1 = 0.75
 lower_band_L1 = 0.25
 # endregion
 
-# region VARIABLES, PLOT
+# region VARIABLES PLOT
 frtl_m15 = 5 # 5 6 7 8
 frtl_h1 = 5 # 5 6 7 8
 frtl_h4 = 5
@@ -102,6 +102,7 @@ plot_entry = 1
 plot_stop_loss = 1
 plot_take_profit = 1
 plot_closed = 1
+plot_half_closed = 1
 
 violet = 'rgba(255, 87 , 51, 0.2)'
 gray = 'rgba(213, 216, 220, 0.2)'
@@ -463,7 +464,7 @@ def figure_fractal(m15,swing, select_positions):
         plot_marker(fig, swing.swl_m15_2.index, swing.swl_m15_2['low'] - swing.offset_m15, 'markers', 'triangle-down', 'green', 5, 'Fractal Lows m15')
     # endregion
 
-    # region PLOT SWING, TRACE, ENTRY, PRE-SWING
+    # region PLOT SWING, TRACE, PRE-SWING
     if swing_m15 == 1:
         # Swing high m15
         plot_marker(fig, m15.index, m15['sh_m15'], 'markers', 'circle', 'red', 2, 'Swing High m15')
@@ -514,6 +515,9 @@ def figure_fractal(m15,swing, select_positions):
                     'rgba(0,255,0,0.2)',
                     dict(color='rgba(0,0,0,0)'))
 
+# endregion
+
+    # region PLOT ATR,ENTRY, SL, TP, CLOSED TIME
     if trace_atr == 1:
         # ATR up
         plot_line(fig, m15.index, m15['atr_up'], 'lines', 1, 'rgba(0,255,0,0.3)', 'atr up')
@@ -539,8 +543,18 @@ def figure_fractal(m15,swing, select_positions):
     if plot_closed == 1:
         # position vector:
         for index, row in select_positions.iterrows():
-            plot_line_no_name(fig, [index, row['closed_time']], [row['entry'], row['closed']], 'lines', 3, 'red')
+            plot_line_no_name(fig, [index, row['closed_time']], [row['entry'], row['closed']], 'lines', 3, 'violet')
 
+    if plot_half_closed == 1:
+        # position vector:
+        for index, row in select_positions.iterrows():
+            if row['half'] == True:
+                plot_line_no_name(fig, [index, row['close_half_time']], [row['entry'], (row['entry']+row['take_profit'])/2], 'lines', 3, 'orange')
+                plot_line_no_name(fig, [row['close_half_time'], row['closed_time']], [(row['entry']+row['take_profit'])/2, row['closed']], 'lines', 3, 'red')
+
+# endregion
+
+    # region PLOT PREVIOUS SWING
     if plot_pre_sh_h1_1 == 1:
         plot_marker(fig, m15.index, m15['sh_h1_pre1'], 'markers', 'triangle-up', 'yellow', 5, 'Swing High H1 pre1')
 

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import tkinter as tk
 import numpy as np
 import plotly.graph_objects as go
+import pyodbc
 
 client = MongoClient('localhost', 27017)
 db = client['OANDA']
@@ -141,12 +142,10 @@ def find_previous_swing_index(row, list, order, value, confirm):
         return np.nan
 
 def check_positions(candles, positions, entry, stop_loss, take_profit, closed):
-    positions['close_half'] = 0.0
-    # positions[closed] = 0.0
     positions['half'] = False
     for pos_index, position in positions.iterrows():
         candle_subset = candles.loc[pos_index:]
-        
+
         for candle_index, candle in candle_subset.iterrows():
             if position['confirm_buy'] == True:
                 if candle['low'] <= position[stop_loss]:
@@ -159,7 +158,7 @@ def check_positions(candles, positions, entry, stop_loss, take_profit, closed):
                     break
                 elif candle['high'] >= (position[entry]+position[take_profit])/2:
                     positions.at[pos_index, 'half'] = True
-                    positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
+                    positions.at[pos_index, 'close_half_time'] = candle_index
                 else:
                     positions.at[pos_index, closed] = candle['close']  # Position still open
             if position['confirm_sell'] == True:
@@ -173,12 +172,9 @@ def check_positions(candles, positions, entry, stop_loss, take_profit, closed):
                     break
                 elif candle['low'] <= (position[entry]+position[take_profit])/2:
                     positions.at[pos_index, 'half'] = True
-                    positions.at[pos_index, 'close_half'] = (position[entry] + position[take_profit])/2
+                    positions.at[pos_index, 'close_half_time'] = candle_index
                 else:
                     positions.at[pos_index, closed] = candle['close']  # Position still open
-
-            # 
-            # positions.at[pos_index, "closed_time"] = candle_index
     return positions
 
 def plot_line(fig, x, y, mode, width, color,name):   
@@ -280,4 +276,90 @@ def two_check(df, smt1, smt2):
 
 def three_check(df, smt1, smt2, smt3):
     return df[[smt1, smt2, smt3]].notna().all(axis=1).sum()
+
+def get_data_sql(engine, table_name, chunk_size):
+    # Define the query to fetch data from the table `audusd_m15`
+    query = f"SELECT * FROM {table_name}"
+
+    # Read the data in chunks
+    chunk_iter = pd.read_sql_query(query, engine, chunksize=chunk_size)
+
+    # Initialize an empty list to store each chunk
+    chunks = []
+
+    # Process each chunk
+    for chunk in chunk_iter:
+        # Perform any necessary data processing on the chunk here
+        chunks.append(chunk)
+
+    # Concatenate all chunks into a single DataFrame
+    df = pd.concat(chunks, ignore_index=True)
+    
+    return df
+
+def create_table(Server, table_name, database_folder):
+    try:
+        connection = pyodbc.connect(
+            f"DRIVER={Server.driver};SERVER={Server.server};UID={Server.username};PWD={Server.password}"
+        )
+        print("Connection successful!")
+    except pyodbc.Error as e:
+        print(f"Error connecting to database: {e}")
+
+    # Create a cursor object to interact with the SQL Server
+    cursor = connection.cursor()
+
+    # Check if the database exists
+    cursor.execute(f"SELECT name FROM master.dbo.sysdatabases WHERE name = '{Server.db_name}'")
+    database_exists = cursor.fetchone()
+
+    if not database_exists:
+        # Create the database if it doesn't exist
+
+        # Save the current autocommit mode
+        previous_autocommit = connection.autocommit
+        # Enable autocommit mode
+        connection.autocommit = True
+        # Execute the CREATE DATABASE statement
+        create_database_query = fr"""CREATE DATABASE {Server.db_name} 
+        ON  ( NAME = {Server.db_name}_dat, FILENAME = '{database_folder}\{Server.db_name}.mdf') 
+        LOG ON  ( NAME = {Server.db_name}_log, FILENAME = '{database_folder}\{Server.db_name}_log.ldf');"""
+        cursor.execute(create_database_query)
+        # Restore the previous autocommit mode
+        connection.autocommit = previous_autocommit
+        
+        print(f"Database {Server.db_name} created successfully!")
+    else:
+        print(f"Database {Server.db_name} already exists.")
+
+    # Check if the table exists and create it if it does not
+    table_check_query = f"""
+        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table_name}')
+        BEGIN
+            CREATE TABLE {table_name} (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                time datetime,
+                [open] FLOAT,
+                [high] FLOAT,
+                [low] FLOAT,
+                [close] FLOAT,
+                tick_volume BIGINT,
+                spread INT,
+                text_id VARCHAR(255)
+            )
+        END
+    """
+        
+    # Execute the table creation query
+    cursor.execute(table_check_query)
+    print(f"Table {table_name} checked and created if it did not exist.")
+
+    # Commit the transaction
+    connection.commit()
+
+    # Close the connection
+    cursor.close()
+    connection.close()
+
+    print(f"Database '{Server.db_name}' and table '{table_name}' are connected.")
 
